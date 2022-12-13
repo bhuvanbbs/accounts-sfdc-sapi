@@ -1,0 +1,19 @@
+[
+{
+  "Name": "Sravanthi",
+  "Email": "abc@xyz.com",
+  "Number": "1011",
+  "Phone": "90312893293",
+  "Fax": "21312312",
+  "BillingStreet": "High Street",
+  "BillingCity": "Hyderabad",
+  "BillingState": "Telangana",
+  "BillingPostalCode": "500089",
+  "BillingCountry": "India",
+  "ShippingStreet": "High Street",
+  "ShippingCity": "Hyderabad",
+  "ShippingState": "Telangana",
+  "ShippingPostalCode": "500089",
+  "ShippingCountry": "India"
+  }
+]

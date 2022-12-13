@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="post-account-flow" doc:id="a1c3c8e7-2c7b-42dc-9e7c-4f10ae2d00d5" >
+		<ee:transform doc:name="Convert to Array" doc:id="699cdb83-58c4-4d9b-a502-b01b6dae64ea" >
+			<ee:message >
+				<ee:set-payload resource="scripts/post-convert-payload-to-array.dwl" />
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="name" ><![CDATA[payload[0].name]]></ee:set-variable>
+				<ee:set-variable variableName="email" ><![CDATA[payload[0].email]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<salesforce:create doc:name="Create Data in Account" doc:id="c1094601-b5ae-4b31-a243-709759e19a5c" config-ref="Salesforce_Config" type="Account">
+			<error-mapping targetType="SALESFORCE:UPDATE_ERROR" />
+			<reconnect />
+		</salesforce:create>
+		<choice doc:name="Choice" doc:id="431fa220-52d6-4bac-8b84-81d3888eb17d">
+			<when expression="#[payload.successful == true]">
+				<ee:transform doc:name="Set Response" doc:id="b75a097c-c460-486d-9c66-b765887bcf1e">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	id: payload.items[0].id,
+	status: 0,
+	message: "Account created successfully"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+				<logger level="INFO" doc:name="Log record" doc:id="76df6e05-7ab7-43a5-b7c7-ad5f17c942f4" message='#[output application/json --- "New Record":{"name": vars.name, "email": vars.email}]' />
+				<logger level="INFO" doc:name="Log Id" doc:id="2a8e4074-c4e1-49ee-b4a0-fae24ce3d916" message="#[payload]" />
+			</when>
+			<otherwise>
+				<logger level="INFO" doc:name="Log Error" doc:id="120cd769-6503-4331-b298-6710e7ea7e77" message='#[output application/json --- &#10;{&#10;	"correleationId": vars.cid ,&#10;	"status": 1, "error": "Duplicate Records", "message": "Duplicate values in the Required fields of the Record"}]' />
+				<raise-error doc:name="Create Record Error" doc:id="20250cbd-f4a4-47a9-b42e-b3783cfa23c8" type="SALESFORCE:UPDATE_ERROR" description="Failed to Create Record in Account" />
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="get-account-flow" doc:id="a6bf6ecc-e4b9-4266-b3ad-46dfc404335f" >
+		<salesforce:query doc:name="Get Data from Account" doc:id="5d8ec2d5-cb68-4665-8103-39dd0363a1ec" config-ref="Salesforce_Config">
+			<reconnect />
+			<salesforce:salesforce-query><![CDATA[select id, Name ,Email__c, AccountNumber, Phone, Fax, BillingStreet, BillingCity, BillingState, BillingPostalCode, BillingCountry, ShippingStreet, ShippingCity, ShippingState, ShippingPostalCode, ShippingCountry from Account where id=':id']]></salesforce:salesforce-query>
+			<salesforce:parameters><![CDATA[#[output application/java
+---
+{
+	"id" : vars.accountId
+}]]]></salesforce:parameters>
+		</salesforce:query>
+		<ee:transform doc:name="Convert Array to Object" doc:id="a6f3d215-3c2c-4051-8d70-cbe0fd9f621b" >
+			<ee:message >
+				<ee:set-payload resource="scripts/convert-payload-to-object.dwl" />
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="httpStatus" ><![CDATA[200]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<logger level="INFO" doc:name="Log Response" doc:id="287a4566-37b3-48ba-9bea-1c55de580f8d" message='#[output application/json --- {"correleationId": vars.cid ,"id": vars.accountId, "message": "GET method success"}]'/>
+	</flow>
+	<flow name="put-account-flow" doc:id="b76f9130-a616-4b59-a487-e04b212b79f5" >
+		<flow-ref doc:name="get-record-flow" doc:id="d343cbcc-d17c-4d64-a40a-bb10b38fd768" name="get-record-flow" target="getAccount"/>
+		<ee:transform doc:name="Convert to array" doc:id="e323c884-2573-46f1-a8d5-371fd3d02049">
+			<ee:message>
+				<ee:set-payload resource="scripts/put-convert-payload-to-array.dwl" />
+			</ee:message>
+		</ee:transform>
+		<salesforce:update doc:name="Update Data in Account" doc:id="c166c94e-1e64-41f5-902c-63a3789febd7" config-ref="Salesforce_Config" type="Account">
+			<reconnect />
+		</salesforce:update>
+		<choice doc:name="Choice" doc:id="4d00ff79-dc7c-4105-946c-c6ee97448a59" >
+			<when expression="#[payload.successful == true]" >
+				<ee:transform doc:name="Set Response" doc:id="14e2268f-bb6a-4aac-ad93-55a3a852ac73" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	id: payload.items[0].id,
+	status: 0,
+	message: "Account updated successfully"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="Log response" doc:id="c532564b-ba11-4bc8-af23-aac52aff97c8" message='#[output application/json --- {"correleationId": vars.cid ,"id": vars.accountId,"message": payload.message}]'/>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Set errorCode" doc:id="d8eeb8ec-c1fb-42c7-a91b-a40b21a5bc1a" >
+					<ee:message />
+					<ee:variables >
+						<ee:set-variable variableName="statusCode" ><![CDATA[payload.items[0].statusCode]]></ee:set-variable>
+						<ee:set-variable variableName="errorStatus" ><![CDATA[payload.items[0].exception.detailMessage]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+				<logger level="INFO" doc:name="Log error" doc:id="71cf5840-a05a-496f-8b8f-54d8e5c7885d" message='#[output application/json --- {"correleationId": vars.cid ,"status": 1, "error": "Duplicate Records", "message":payload.items[0].exception.detailMessage}]'/>
+				<raise-error doc:name="Update Record Error" doc:id="e03548a2-5032-4c23-8d34-72c5bedec8e1" type="SALESFORCE:UPDATE_ERROR" description="Failed to Create Record in Account" />
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="delete-account-flow" doc:id="e95e4780-f3f8-4fe3-9ba8-2d073747bd2d" >
+		<flow-ref doc:name="get-record-flow" doc:id="f96a29a4-492c-44bb-add6-f3fbc7e17eba" name="get-record-flow" target="getAccount"/>
+		<salesforce:delete doc:name="Delete Data from Account" doc:id="e39863f3-454f-4dd0-9eaa-d24f6505232e" config-ref="Salesforce_Config">
+			<reconnect />
+			<salesforce:ids ><![CDATA[#[[vars.accountId]]]]></salesforce:ids>
+		</salesforce:delete>
+		<ee:transform doc:name="Set Response" doc:id="482191dc-f506-4149-bcdd-b042151391df" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	id: payload.items[0].id,
+	status: 0,
+	message: "Account deleted successfully"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="1806afd3-1fe0-4431-99b3-47c3c35290ff" message='#[output application/json --- {"correleationId": vars.cid , "id": payload.id, "message": payload.message}]'/>
+	</flow>
+	<sub-flow name="get-record-flow" doc:id="470c442b-0439-4e63-8a9b-4827dc228d49">
+		<salesforce:query doc:name="Get Data from Account" doc:id="d399ec0a-5ca8-4586-8d64-4935a15fca58" config-ref="Salesforce_Config">
+			<reconnect />
+			<salesforce:salesforce-query><![CDATA[select id, Name ,Email__c, AccountNumber, Phone, Fax, BillingStreet, BillingCity, BillingState, BillingPostalCode, BillingCountry, ShippingStreet, ShippingCity, ShippingState, ShippingPostalCode, ShippingCountry from Account where id=':id']]></salesforce:salesforce-query>
+			<salesforce:parameters><![CDATA[#[output application/java
+---
+{
+	"id" : vars.accountId
+}]]]></salesforce:parameters>
+		</salesforce:query>
+	</sub-flow>
+</mule>

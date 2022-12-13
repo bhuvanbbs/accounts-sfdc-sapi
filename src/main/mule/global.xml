@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
+	xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
+	xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
+http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
+	    <http:listener-config name="accounts-sfdc-sapi-httpListenerConfig" basePath="/">
+        <http:listener-connection host="0.0.0.0" port="${https.port}" protocol="HTTPS">
+			<tls:context >
+				<tls:key-store type="jks" path="${keystore.path}" alias="${keystore.alias}" keyPassword="${secure::keystore.pass}" password="${secure::keystore.pass}" />
+			</tls:context>
+		</http:listener-connection>
+    </http:listener-config>
+	<configuration doc:name="global-error-config" doc:id="7fc2d35d-626e-4378-ac21-2608b6440e29" defaultErrorHandler-ref="globalError_Handler" />
+	<configuration-properties doc:name="Configuration properties" doc:id="8cf376cb-b888-4fc0-b0b5-c008c8f57281" file="${env}.yaml" />
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="3c2d3d65-a91f-4d38-899b-896b2657d2d6" >
+		<salesforce:basic-connection username="bhuvan@test.com" password="Test1998" securityToken="NFeKNUhYtMMLwF4r2S3UfJJde" >
+			<reconnection >
+				<reconnect frequency="3000" />
+			</reconnection>
+		</salesforce:basic-connection>
+	</salesforce:sfdc-config>
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="3f08906e-18f1-4dcc-95cb-bf151359907a" file="${env}.yaml" key="${securekey}" />
+	<api-gateway:autodiscovery apiId="18360476" ignoreBasePath="true" doc:name="API Autodiscovery" doc:id="45a12bd8-cc85-4188-bfb8-d1935f1d4090" flowRef="accounts-sfdc-sapi-main" />
+	<error-handler name="globalError_Handler" doc:id="d6f1d28e-ed38-4184-a805-2a8b605f045b">
+		<on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform doc:name="Bad request">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	correlationId: vars.cid default correlationId,
+	status: 1,
+	message: "Bad request",
+	error: error.detailedDescription
+	}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[400]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Not Found">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	correlationId: vars.cid default correlationId,
+	status: 1,message: "Resource not found",
+	error: error.description}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[404]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform doc:name="Method not allowed">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	correlationId: vars.cid default correlationId,
+	status: 1,message: "Method not allowed",
+	error: error.description}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[405]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform doc:name="Not Acceptable">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	correlationId: vars.cid default correlationId,
+	status: 1,message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[406]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform doc:name="Unsupported Media Type">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	correlationId: vars.cid default correlationId,
+	status: 1,message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[415]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform doc:name="Not Implemented">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	correlationId: vars.cid default correlationId,
+	status: 1,
+	message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[501]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+		<on-error-continue enableNotifications="true" logException="true" doc:name="On Error continue" doc:id="35146921-4764-4e39-bb89-fc5c7d1993ea" type="SALESFORCE:UPDATE_ERROR">
+			<ee:transform doc:name="Duplicate Records" doc:id="b9f07d0a-ba69-42b4-8ff1-d8f9ef42d36f">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	correlationId: vars.cid default correlationId,
+	status: 1,
+	error: payload.items[0].statusCode,
+	message: payload.items[0].exception.detailMessage
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[400]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+		</on-error-continue>
+		<on-error-continue enableNotifications="true" logException="true" doc:name="On Error continue" doc:id="74269541-8e72-40d1-b197-0ee421e62e99" type="SALESFORCE:INVALID_INPUT">
+			<ee:transform doc:name="Invalid AccountId" doc:id="7fb65432-1a2c-44e4-a379-385650bea503">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	correlationId: vars.cid default correlationId,
+	status: 1,
+	error: "Invalid Account ID",
+	message: "No Data available for id " ++ vars.accountId
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[400]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+		</on-error-continue>
+		<on-error-continue enableNotifications="true" logException="true" doc:name="On Error continue" doc:id="92d50784-e22e-401a-94da-4c4a8b2fd95e" type="HTTP:TIMEOUT">
+			<ee:transform doc:name="Http Timeout" doc:id="90999824-99d4-4a74-9567-d73191eafe8e">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	correlationId: vars.cid ,
+	status: 1,
+	message: "Request Timeout Error",
+	error: error.errorMessage.payload
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[504]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+		</on-error-continue>
+		<on-error-continue enableNotifications="true" logException="true" doc:name="On Error continue" doc:id="d6c4d206-2bd1-4abd-ab47-057edb218ea4" type="ANY">
+			<ee:transform doc:name="Any" doc:id="a0ab8bab-2d81-4bdb-8148-de44af278e4a">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	correlationId: vars.cid ,
+	status: 1,
+	message: "Internal Server Error"
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[500]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+		</on-error-continue>
+
+
+</error-handler>
+    
+    
+</mule>

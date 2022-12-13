@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd  http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd">
+    <apikit:config name="accounts-sfdc-sapi-config" api="resource::3d661517-1a7c-428a-a671-160ec2d12da9:accounts-sfdc-sapi:1.0.6:raml:zip:accounts-sfdc-sapi.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <flow name="accounts-sfdc-sapi-main">
+        <http:listener config-ref="accounts-sfdc-sapi-httpListenerConfig" path="/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="accounts-sfdc-sapi-config" doc:id="24af605a-46a7-4110-9489-6b28142c045a" />
+    </flow>
+    <flow name="post:\accounts:application\json:accounts-sfdc-sapi-config">
+        <ee:transform doc:name="Set correlationId" doc:id="d691ef1e-65b0-4aa5-bd05-dcb648dcbf4e">
+            <ee:variables>
+                <ee:set-variable variableName="cid"><![CDATA[attributes.headers.correlationId]]></ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <flow-ref doc:name="Post Account Flow" doc:id="ee080c13-0b73-47c1-8da7-15d64b5409c5" name="post-account-flow" />
+    </flow>
+    <flow name="get:\accounts\(accountId):accounts-sfdc-sapi-config">
+        <ee:transform doc:name="Set accountId" doc:id="c829412a-eaa1-47b0-94f0-1b66c70088dc">
+            <ee:variables>
+                <ee:set-variable variableName="accountId"><![CDATA[attributes.uriParams.'accountId']]></ee:set-variable>
+                <ee:set-variable variableName="cid"><![CDATA[attributes.headers.correlationId]]></ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <flow-ref doc:name="Get Account Flow" doc:id="06b7b017-a9e8-4691-8570-4e59c37f6752" name="get-account-flow" />
+    </flow>
+    <flow name="put:\accounts\(accountId):application\json:accounts-sfdc-sapi-config">
+        <ee:transform doc:name="Set accountId" doc:id="73c0dc54-9b6b-450d-b452-ec88cfc7fba4">
+            <ee:variables>
+                <ee:set-variable variableName="accountId"><![CDATA[attributes.uriParams.'accountId']]></ee:set-variable>
+                <ee:set-variable variableName="cid"><![CDATA[attributes.headers.correlationId]]></ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <flow-ref doc:name="Put Account Flow" doc:id="3623cfb2-0476-4657-9d2d-5103d3a3f9d3" name="put-account-flow" />
+    </flow>
+    <flow name="delete:\accounts\(accountId):accounts-sfdc-sapi-config">
+        <ee:transform doc:name="Set accountId" doc:id="9b78c5c0-fed1-45ad-8c7b-6a137a8f4173">
+            <ee:variables>
+                <ee:set-variable variableName="accountId"><![CDATA[attributes.uriParams.'accountId']]></ee:set-variable>
+                <ee:set-variable variableName="cid"><![CDATA[attributes.headers.correlationId]]></ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <flow-ref doc:name="Delete Account Flow" doc:id="7a51e69b-0ab2-4513-93e9-6ecd3461e015" name="delete-account-flow" />
+    </flow>
+</mule>
